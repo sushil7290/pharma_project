@@ -21,13 +21,13 @@ public class MedicineController {
 	private MedicineService medicineService;
 	
 	//POST
-	@RequestMapping(value="/addmedicine", method= RequestMethod.POST)
+	@RequestMapping(value="/medicines", method= RequestMethod.POST)
 	public Medicine addMedicine(@RequestBody Medicine medicine) {
 		return medicineService.saveMedicine(medicine);
 	}
 	
 	//POST
-	@RequestMapping(value="/addmedicines", method= RequestMethod.POST)
+	@RequestMapping(value="/medicines/addmedicines", method= RequestMethod.POST)
 	public List<Medicine> addMedicine(@RequestBody List<Medicine> medicine) {
 		return medicineService.saveAllMedicines(medicine);
 	}
