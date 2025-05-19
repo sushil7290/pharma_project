@@ -1,0 +1,229 @@
+STEP 1: Add Log4j2 to Your Project
+🔧 pom.xml (for Maven):
+Replace any existing spring-boot-starter-logging (which uses Logback) with Log4j2:
+
+xml
+Copy
+Edit
+<!-- Exclude default logging -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter</artifactId>
+    <exclusions>
+        <exclusion>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-logging</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+
+<!-- Add Log4j2 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-log4j2</artifactId>
+</dependency>
+✅ STEP 2: Create log4j2.xml in src/main/resources
+xml
+Copy
+Edit
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+  <Appenders>
+    <Console name="Console" target="SYSTEM_OUT">
+      <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+    </Console>
+    <File name="FileLogger" fileName="logs/app.log">
+      <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L - %m%n"/>
+    </File>
+  </Appenders>
+
+  <Loggers>
+    <Root level="info">
+      <AppenderRef ref="Console"/>
+      <AppenderRef ref="FileLogger"/>
+    </Root>
+  </Loggers>
+</Configuration>
+✅ STEP 3: Add Logging + Exception Handling to Controller
+🔧 MedicineController.java:
+java
+Copy
+Edit
+package com.example.pharma.controller;
+
+import com.example.pharma.model.Medicine;
+import com.example.pharma.service.MedicineService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@CrossOrigin("*")
+@RestController
+@RequestMapping("/pharma")
+@Slf4j
+public class MedicineController {
+
+    @Autowired
+    private MedicineService medicineService;
+
+    @PostMapping("/medicines")
+    public ResponseEntity<Medicine> addMedicine(@RequestBody Medicine medicine) {
+        log.info("Adding new medicine: {}", medicine.getMedName());
+        Medicine saved = medicineService.saveMedicine(medicine);
+        return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping("/medicines")
+    public ResponseEntity<List<Medicine>> getAll() {
+        log.info("Fetching all medicines");
+        return ResponseEntity.ok(medicineService.getAllMedicines());
+    }
+
+    @PutMapping("/medicines/{id}")
+    public ResponseEntity<Medicine> updateMedicine(@PathVariable Long id, @RequestBody Medicine medicine) {
+        log.info("Updating medicine ID {}", id);
+        medicine.setId(id);
+        return ResponseEntity.ok(medicineService.saveMedicine(medicine));
+    }
+
+    @DeleteMapping("/medicines/{id}")
+    public ResponseEntity<Void> deleteMedicine(@PathVariable Long id) {
+        log.warn("Deleting medicine ID {}", id);
+        medicineService.deleteMedicine(id);
+        return ResponseEntity.noContent().build();
+    }
+}
+Note: Ensure your Medicine class has a proper toString() or use getMedName() in logs to avoid clutter.
+
+✅ STEP 4: Global Exception Handling
+🔧 GlobalExceptionHandler.java:
+java
+Copy
+Edit
+package com.example.pharma.exception;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleGeneralException(Exception ex) {
+        log.error("Unhandled exception: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("An unexpected error occurred.");
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleBadInput(IllegalArgumentException ex) {
+        log.warn("Invalid input: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body("Invalid input: " + ex.getMessage());
+    }
+
+    // Add more handlers as needed for NotFound, Validation, etc.
+}
+✅ STEP 5: Add a Custom Exception (Optional, Best Practice)
+🔧 Example: MedicineNotFoundException.java
+java
+Copy
+Edit
+package com.example.pharma.exception;
+
+public class MedicineNotFoundException extends RuntimeException {
+    public MedicineNotFoundException(Long id) {
+        super("Medicine with ID " + id + " not found.");
+    }
+}
+Update the GlobalExceptionHandler to handle it.
+
+✅ Result
+You now have Log4j2-based logging (to console + file)
+
+Centralized exception handling
+
+Clean, maintainable backend ready for production
+
+Would you like me to also help add logging in your Service and Repository layers?
+
+
+
+
+
+✅ 1. Controller Layer — Entry point for HTTP requests
+Use logging to trace:
+
+Incoming requests
+
+Request parameters
+
+Flow between service and controller
+
+Status (start, success, failure)
+
+Use exception handling for:
+
+Validation errors
+
+Resource not found
+
+General/unexpected exceptions
+
+✅ Example in Controller:
+java
+Copy
+Edit
+@PostMapping("/medicines")
+public ResponseEntity<Medicine> addMedicine(@RequestBody Medicine medicine) {
+    log.info("Request to add medicine: {}", medicine);
+    Medicine saved = medicineService.saveMedicine(medicine);
+    log.info("Medicine saved successfully with ID: {}", saved.getId());
+    return ResponseEntity.ok(saved);
+}
+✅ 2. Service Layer — Business logic
+Use logging to:
+
+Track execution of logic (e.g., database calls, calculations)
+
+Log exceptions before rethrowing or handling
+
+Use exception handling for:
+
+Business-specific validations (e.g., "medicine already exists")
+
+Throw custom exceptions to be handled globally
+
+✅ Example in Service:
+java
+Copy
+Edit
+public Medicine getMedicineById(Long id) {
+    log.debug("Fetching medicine by ID: {}", id);
+    return medicineRepository.findById(id)
+            .orElseThrow(() -> {
+                log.warn("Medicine not found with ID: {}", id);
+                return new MedicineNotFoundException(id);
+            });
+}
+✅ 3. Repository Layer — Data access
+Avoid excessive logging here
+
+Optionally log if you're doing complex native queries or custom logic
+
+No exception handling unless you catch and wrap lower-level exceptions
+
+✅ 4. Global Exception Handler
+Catches exceptions thrown from any layer and converts them into proper HTTP responses.
+
+✅ Typical exceptions to handle:
+Exception	Status Code	Use case
+IllegalArgumentException	400	Input validation
+MedicineNotFoundException	404	Entity not found
+Exception	500	Fallback for all other errors
+
